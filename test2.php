@@ -6,7 +6,28 @@
 </head>
 <body>
 <?php
-function resize_image($file, $w, $h, $crop=FALSE,$is_show_msg = false) {
+function is_image_safe($file) {
+    $finfo = new finfo(FILEINFO_MIME);
+    $mime = $finfo->file($file);
+    if (strpos($mime, 'image/') !== 0) {
+        return false;
+    }
+
+    if (filesize($file) <= 0) {
+        return false;
+    }
+
+    return true;
+}
+
+function resize_image($file, $w, $h, $crop=FALSE, $is_show_msg = false) {
+    if (!is_image_safe($file)) {
+        if ($is_show_msg) {
+            echo "Error: unsafe image file $file <br>\r\n";
+        }
+        return false;
+    }
+
     try {
         $src = imagecreatefrompng($file);
     } catch (Exception $e) {
@@ -71,7 +92,27 @@ function resize_image($file, $w, $h, $crop=FALSE,$is_show_msg = false) {
     return $dst;
 }
 
-$cache_file = "/test/test.jpg";
+function clear_old_cache_files($cache_dir, $max_age_seconds) {
+    if (!is_dir($cache_dir)) {
+        return;
+    }
+
+    $files = glob($cache_dir . '/*');
+    $now = time();
+
+    foreach ($files as $file) {
+        if (is_file($file) && ($now - filemtime($file)) > $max_age_seconds) {
+            unlink($file);
+        }
+    }
+}
+
+$cache_dir = '/test';
+$cache_file = $cache_dir . '/test.jpg';
+$max_cache_age_seconds = 86400; // 1 день
+
+clear_old_cache_files($cache_dir, $max_cache_age_seconds);
+
 $img = resize_image("/test/test.jpg", 200, 100);
 
 if (!file_exists($cache_file)) {
